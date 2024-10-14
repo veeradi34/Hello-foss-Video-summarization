@@ -6,11 +6,9 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.utils as vutils
 
-# Spectral Normalization
 def spectral_norm(module):
     return nn.utils.spectral_norm(module)
 
-# Self-Attention Layer
 class SelfAttention(nn.Module):
     def __init__(self, in_dim):
         super(SelfAttention, self).__init__()
@@ -21,17 +19,16 @@ class SelfAttention(nn.Module):
         
     def forward(self, x):
         batch, C, width, height = x.size()
-        query = self.query(x).view(batch, -1, width * height).permute(0, 2, 1)  # B x N x C
-        key = self.key(x).view(batch, -1, width * height)  # B x C x N
-        attention = torch.bmm(query, key)  # B x N x N
+        query = self.query(x).view(batch, -1, width * height).permute(0, 2, 1)
+        key = self.key(x).view(batch, -1, width * height)
+        attention = torch.bmm(query, key)
         attention = torch.softmax(attention, dim=-1)
         value = self.value(x).view(batch, -1, width * height)
-        out = torch.bmm(value, attention.permute(0, 2, 1))  # B x C x N
+        out = torch.bmm(value, attention.permute(0, 2, 1))
         out = out.view(batch, C, width, height)
         
         return self.gamma * out + x
 
-# Generator with Residual Connections and Attention
 class ResidualGenerator(nn.Module):
     def __init__(self, latent_dim, img_channels, feature_g):
         super(ResidualGenerator, self).__init__()
@@ -60,7 +57,6 @@ class ResidualGenerator(nn.Module):
         img = self.conv_blocks(out)
         return img
 
-# Discriminator with Spectral Normalization and Residual Layers
 class ResidualDiscriminator(nn.Module):
     def __init__(self, img_channels, feature_d):
         super(ResidualDiscriminator, self).__init__()
@@ -76,14 +72,21 @@ class ResidualDiscriminator(nn.Module):
             *discriminator_block(feature_d, feature_d * 2),
             *discriminator_block(feature_d * 2, feature_d * 4),
             *discriminator_block(feature_d * 4, feature_d * 8),
-            nn.Conv2d(feature_d * 8, 1, 4, stride=1, padding=0)
+            nn.Conv2d(feature_d * 8, 1, 1, stride=1, padding=0)
         )
         
     def forward(self, img):
         validity = self.model(img)
         return validity.view(-1, 1)
 
-# Hyperparameters
+def evaluate(generator, latent_dim, device):
+    generator.eval()
+    with torch.no_grad():
+        z = torch.randn(16, latent_dim, device=device)
+        gen_imgs = generator(z)
+        vutils.save_image(gen_imgs, "evaluation_images.png", normalize=True)
+    generator.train()
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 latent_dim = 100
 img_channels = 1
@@ -94,16 +97,13 @@ epochs = 50
 lr = 0.0002
 beta1 = 0.5
 
-# Models
 generator = ResidualGenerator(latent_dim, img_channels, feature_g).to(device)
 discriminator = ResidualDiscriminator(img_channels, feature_d).to(device)
 
-# Loss and Optimizers
 criterion = nn.BCEWithLogitsLoss()
 optimizer_g = optim.Adam(generator.parameters(), lr=lr, betas=(beta1, 0.999))
 optimizer_d = optim.Adam(discriminator.parameters(), lr=lr, betas=(beta1, 0.999))
 
-# Data loader
 transform = transforms.Compose([
     transforms.Resize(32),
     transforms.ToTensor(),
@@ -113,7 +113,6 @@ transform = transforms.Compose([
 dataset = datasets.MNIST(root='./data', download=True, transform=transform)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-# Training
 for epoch in range(epochs):
     for i, (imgs, _) in enumerate(dataloader):
         imgs = imgs.to(device)
@@ -121,21 +120,25 @@ for epoch in range(epochs):
         real = torch.ones(batch_size, 1).to(device)
         fake = torch.zeros(batch_size, 1).to(device)
 
-        # Train Discriminator
         optimizer_d.zero_grad()
-        real_loss = criterion(discriminator(imgs), real)
+        real_validity = discriminator(imgs)
+        real = torch.ones_like(real_validity).to(device)
+        real_loss = criterion(real_validity, real)
         
         z = torch.randn(batch_size, latent_dim, device=device)
         gen_imgs = generator(z)
-        fake_loss = criterion(discriminator(gen_imgs.detach()), fake)
+        fake_validity = discriminator(gen_imgs.detach())
+        fake = torch.zeros_like(fake_validity).to(device)
+        fake_loss = criterion(fake_validity, fake)
         
         d_loss = (real_loss + fake_loss) / 2
         d_loss.backward()
         optimizer_d.step()
 
-        # Train Generator
         optimizer_g.zero_grad()
-        g_loss = criterion(discriminator(gen_imgs), real)
+        fake_validity = discriminator(gen_imgs)
+        real = torch.ones_like(fake_validity).to(device)
+        g_loss = criterion(fake_validity, real)
         g_loss.backward()
         optimizer_g.step()
 
@@ -144,3 +147,4 @@ for epoch in range(epochs):
                   f"D Loss: {d_loss.item():.4f}, G Loss: {g_loss.item():.4f}")
 
     vutils.save_image(gen_imgs, f"generated_epoch_{epoch+1}.png", normalize=True)
+    evaluate(generator, latent_dim, device)
