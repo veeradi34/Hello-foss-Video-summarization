@@ -48,3 +48,21 @@
    
    **Expected Outcome:**  
    The evaluation metric(s) should provide a quantitative way to assess the GAN’s performance. Track the metric score across epochs to determine if the model is improving in terms of generating realistic and diverse images.
+### 5. Implement Text-to-Image Generation Using the GAN Model
+
+**Description**
+Implement a new feature to enable text-to-image generation with the current GAN model. This will involve updating the generator to take text embeddings as input, modifying the data pipeline to include text, and adding a way to evaluate the quality of generated images against their respective textual descriptions.
+
+**Tasks**
+1. Research potential ways to incorporate text embeddings into the GAN model (e.g., using pre-trained embeddings or models like BERT or GloVe).
+2. Modify the GAN model’s generator to accept and process text data.
+3. Implement a data pipeline that includes both images and corresponding text descriptions.
+4. Create a function for evaluating the generated images based on the text descriptions.
+5. Document the new code and ensure integration with the existing GAN framework.
+
+**Expected Outcome:**
+A new feature within the GAN framework that allows users to input textual descriptions and receive generated images based on those descriptions.
+
+**References**
+- [Intro to Conditional GANs](https://arxiv.org/abs/1411.1784)
+- [Text-to-Image Generation Tutorial](https://towardsdatascience.com/text-to-image-generation-with-gans-architecture-and-implementation-d800b2f377d0)
