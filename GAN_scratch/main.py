@@ -1,9 +1,9 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 import torchvision.utils as vutils
 
 def spectral_norm(module):
@@ -79,6 +79,39 @@ class ResidualDiscriminator(nn.Module):
         validity = self.model(img)
         return validity.view(-1, 1)
 
+class MNISTUbyteDataset(Dataset):
+    def __init__(self, images_path, labels_path, transform=None):
+        self.images = self.load_images(images_path)
+        self.labels = self.load_labels(labels_path)
+        self.transform = transform
+
+    def load_images(self, path):
+        with open(path, 'rb') as f:
+            f.read(16)
+            data = np.frombuffer(f.read(), np.uint8).astype(np.float32)
+            data = data.reshape(-1, 28, 28)
+            return data / 255.0
+
+    def load_labels(self, path):
+        with open(path, 'rb') as f:
+            f.read(8)
+            return np.frombuffer(f.read(), np.uint8)
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        label = self.labels[idx]
+        image = np.expand_dims(image, axis=0)
+
+        if self.transform:
+            image = self.transform(image)
+
+        image = torch.tensor(image, dtype=torch.float32)
+
+        return image, label
+
 def evaluate(generator, latent_dim, device):
     generator.eval()
     with torch.no_grad():
@@ -105,12 +138,17 @@ optimizer_g = optim.Adam(generator.parameters(), lr=lr, betas=(beta1, 0.999))
 optimizer_d = optim.Adam(discriminator.parameters(), lr=lr, betas=(beta1, 0.999))
 
 transform = transforms.Compose([
+    transforms.Lambda(lambda x: np.transpose(x, (1, 2, 0))),
+    transforms.ToPILImage(),
     transforms.Resize(32),
     transforms.ToTensor(),
     transforms.Normalize([0.5], [0.5])
 ])
 
-dataset = datasets.MNIST(root='./data', download=True, transform=transform)
+images_path = 'Path to your Dataset'
+labels_path = 'Path to your Dataset'
+
+dataset = MNISTUbyteDataset(images_path, labels_path, transform=transform)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 for epoch in range(epochs):
