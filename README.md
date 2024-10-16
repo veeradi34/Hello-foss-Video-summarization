@@ -23,14 +23,15 @@ Install Dependencies: PyTorch installation depends on your system configuration.
 
    ```bash
    pip install numpy torchvision
-Run main.py: The main.py file contains the core GAN implementation from scratch. To start training, simply run the script as follows:
 
-    ```bash
-   python main.py
-### Project Structure
+Run main.py: The main.py file contains the core GAN implementation from scratch.
+
+   `
+## Project Structure
 main.py: The primary GAN code. This file implements a GAN model from scratch and includes essential functions for training and image generation. The code is structured with clear functions for the generator and discriminator, along with a training loop.
 
-### Issues Tab: The Issues tab on this repository contains a series of tasks designed to guide contributors through improvements and feature extensions. Issues are arranged in a logical order, with some tasks dependent on the completion of previous ones. It’s recommended to tackle them sequentially.
+### Issues Tab
+The Issues tab on this repository contains a series of tasks designed to guide contributors through improvements and feature extensions. Issues are arranged in a logical order, with some tasks dependent on the completion of previous ones. It’s recommended to tackle them sequentially.
 
 
 
